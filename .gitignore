@@ -1,0 +1,15 @@
+.idea
+target
+docs/design/*.html
+*.DS_Store
+telepresence.log
+**/.ivy2
+.vscode
+.sc
+todo.txt
+akka-diagnostics
+.bloop/
+.metals/
+.bsp/
+**/metals.sbt
+.coursier/
