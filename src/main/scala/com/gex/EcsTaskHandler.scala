@@ -4,6 +4,7 @@ import com.amazonaws.ClientConfiguration
 import com.amazonaws.services.ecs.model.{AssignPublicIp, AwsVpcConfiguration, NetworkConfiguration, RunTaskRequest}
 import com.amazonaws.services.ecs.{AmazonECS, AmazonECSClientBuilder}
 import com.amazonaws.services.s3.{AmazonS3, AmazonS3ClientBuilder}
+import com.gex.HttpHandler.Notification
 
 object EcsTaskHandler {
     val client: AmazonECS = AmazonECSClientBuilder.standard.withClientConfiguration(new ClientConfiguration()).build()
@@ -75,25 +76,36 @@ object EcsTaskHandler {
         val fileName = key.substring(key.indexOf("/") + 1, key.length)
         val prefix = fileName.substring(0, fileName.indexOf("."))
         val suffix = fileName.substring(fileName.indexOf(".") + 1)
-        val (taskName, inputFileName) = getNextJobName(prefix, suffix)
+        val (previousTaskName, taskName, inputFileName) = getNextJobName(prefix, suffix)
         taskName match {
             case "invalid" => println(s"Nothing to do for $fileName")
             case _ => println(s"triggering $taskName from s3 input $fileName")
                 createEnvFileInS3(inputFileName = inputFileName)
                 triggerTask(taskName)
+                logNotificationResponse(previousTaskName, "COMPLETED", HttpHandler.sendTaskNotification(Notification(previousTaskName, "COMPLETED")))
+                logNotificationResponse(taskName, "STARTING", HttpHandler.sendTaskNotification(Notification(taskName, "STARTING")))
+
         }
     }
 
-    def getNextJobName(prefix: String, suffix: String): (String, String) = {
+    private def logNotificationResponse(taskName: String, status: String, response: Response): Unit = {
+        response match {
+            case Response(_, 200) => println(s"successfully sent notification for task name $taskName and status $status")
+            case Response(message, code) if code != 200 => println(s"failed to send notification for task name $taskName ans status $status. Code $code message $message")
+            case _ => println("unknown error")
+        }
+    }
+
+    def getNextJobName(prefix: String, suffix: String): (String, String, String) = {
         suffix match {
-            case "extracted.fastq.gz" => ("bbduk", prefix + ".extracted.fastq.gz")
-            case "bbduk.fastq.gz" => ("star", prefix + ".bbduk.fastq.gz")
-            case "Aligned.sortedByCoord.out.bam" => ("htseq_count", prefix + ".Aligned.sortedByCoord.out.bam")
-            case "Aligned.sortedByCoord.out.table.txt" => ("umitools_dedup", prefix + ".Aligned.sortedByCoord.out.bam")
-            case "Aligned.sortedByCoord.out.deduplicated.bam" => ("htseq_count", prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
-            case "Aligned.sortedByCoord.out.deduplicated.table.txt" => ("fastqc", prefix + ".Aligned.sortedByCoord.out.bam")
-            case "Aligned.sortedByCoord.out_fastqc.zip" => ("fastqc", prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
-            case _ => ("invalid", "invalid")
+            case "extracted.fastq.gz" => ("umitools_extract", "bbduk", prefix + ".extracted.fastq.gz")
+            case "bbduk.fastq.gz" => ("bbduk", "star", prefix + ".bbduk.fastq.gz")
+            case "Aligned.sortedByCoord.out.bam" => ("star", "htseq_count", prefix + ".Aligned.sortedByCoord.out.bam")
+            case "Aligned.sortedByCoord.out.table.txt" => ("htseq_count", "umitools_dedup", prefix + ".Aligned.sortedByCoord.out.bam")
+            case "Aligned.sortedByCoord.out.deduplicated.bam" => ("umitools_dedup", "htseq_count", prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
+            case "Aligned.sortedByCoord.out.deduplicated.table.txt" => ("htseq_count", "fastqc", prefix + ".Aligned.sortedByCoord.out.bam")
+            case "Aligned.sortedByCoord.out_fastqc.zip" => ("fastqc", "fastqc", prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
+            case _ => ("invalid", "invalid", "invalid")
         }
     }
 
