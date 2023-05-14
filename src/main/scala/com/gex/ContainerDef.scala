@@ -63,7 +63,7 @@ object ContainerDef {
     taskDefinition.setMemory("2048")
     taskDefinition.setNetworkMode(NetworkMode.Awsvpc)
     taskDefinition.setExecutionRoleArn(
-      "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+      "arn:aws:iam::287730706223:role/ecsTaskExecutionRole"
     )
     taskDefinition.setContainerDefinitions(List(containerDefinition).asJava)
     taskDefinition.setTags(List(nameTag, workspaceTag).asJava)
