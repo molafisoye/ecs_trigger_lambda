@@ -92,11 +92,11 @@ object EcsTaskHandler {
   }
 
   def parseKey(fullKey: String): (String, String) = {
-    val key     = fullKey.substring(fullKey.indexOf("/") + 1)
+    val key       = fullKey.substring(fullKey.indexOf("/") + 1)
     def subfolder = key.substring(0, key.indexOf("/"))
-    def fileName = key.substring(key.indexOf("/") + 1)
+    def fileName  = key.substring(key.indexOf("/") + 1)
 
-    if(fullKey.count(_ == '/') == 2) (subfolder, fileName) else ("", key)
+    if (fullKey.count(_ == '/') == 2) (subfolder, fileName) else ("", key)
 
   }
 
