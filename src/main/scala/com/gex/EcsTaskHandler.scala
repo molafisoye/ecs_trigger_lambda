@@ -35,37 +35,37 @@ object EcsTaskHandler {
 
     taskName.toLowerCase() match {
       case "umitools_extract" =>
-        ContainerDef.create("gex-umitools-extract", accountId, envFileName)
+        client.registerTaskDefinition(ContainerDef.create("gex-umitools-extract", accountId, envFileName))
         runTaskRequest.setTaskDefinition(Config.umitoolsExtractTaskDefFamily)
         runTask(runTaskRequest)
         Response()
       case "umitools_dedup" => // empty
-        ContainerDef.create("gex-umitools-dedup", accountId, envFileName)
+        client.registerTaskDefinition(ContainerDef.create("gex-umitools-dedup", accountId, envFileName))
         runTaskRequest.setTaskDefinition(Config.umitoolsDedupTaskDefFamily)
         runTask(runTaskRequest)
         Response()
       case "htseq_count" =>
-        ContainerDef.create("gex-htseq-count", accountId, envFileName)
+        client.registerTaskDefinition(ContainerDef.create("gex-htseq-count", accountId, envFileName))
         runTaskRequest.setTaskDefinition(Config.htseqCountTaskDefFamily)
         runTask(runTaskRequest)
         Response()
       case "samtools_index" => // empty
-        ContainerDef.create("gex-samtools-index", accountId, envFileName)
+        client.registerTaskDefinition(ContainerDef.create("gex-samtools-index", accountId, envFileName))
         runTaskRequest.setTaskDefinition(Config.samtoolsIndexTaskDefFamily)
         runTask(runTaskRequest)
         Response()
       case "bbduk" =>
-        ContainerDef.create("gex-bbduk", accountId, envFileName)
+        client.registerTaskDefinition(ContainerDef.create("gex-bbduk", accountId, envFileName))
         runTaskRequest.setTaskDefinition(Config.bbdukTaskDefFamily)
         runTask(runTaskRequest)
         Response()
       case "star" =>
-        ContainerDef.create("gex-star", accountId, envFileName)
+        client.registerTaskDefinition(ContainerDef.create("gex-star", accountId, envFileName))
         runTaskRequest.setTaskDefinition(Config.starTaskDefFamily)
         runTask(runTaskRequest)
         Response()
       case "fastqc" =>
-        ContainerDef.create("gex-fastqc", accountId, envFileName)
+        client.registerTaskDefinition(ContainerDef.create("gex-fastqc", accountId, envFileName))
         runTaskRequest.setTaskDefinition(Config.fastqcTaskDefFamily)
         runTask(runTaskRequest)
         Response()
@@ -91,7 +91,8 @@ object EcsTaskHandler {
     )
   }
 
-  def parseKey(key: String): (String, String) = {
+  def parseKey(fullKey: String): (String, String) = {
+    val key = fullKey.substring(fullKey.indexOf("/") + 1)
     val pattern = """^(/([^/]+))?/(.+)$""".r
 
     key match {
