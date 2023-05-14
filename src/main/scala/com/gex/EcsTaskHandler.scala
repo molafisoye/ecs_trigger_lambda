@@ -92,15 +92,12 @@ object EcsTaskHandler {
   }
 
   def parseKey(fullKey: String): (String, String) = {
-    val key = fullKey.substring(fullKey.indexOf("/") + 1)
-    val pattern = """^(/([^/]+))?/(.+)$""".r
+    val key     = fullKey.substring(fullKey.indexOf("/") + 1)
+    def subfolder = key.substring(0, key.indexOf("/"))
+    def fileName = key.substring(key.indexOf("/") + 1)
 
-    key match {
-      case pattern(_, subfolder, key) =>
-        (Option(subfolder).getOrElse(""), key)
-      case _ =>
-        throw new IllegalArgumentException("invalid key")
-    }
+    if(fullKey.count(_ == '/') == 2) (subfolder, fileName) else ("", key)
+
   }
 
   def handleS3PutEvent(key: String): Unit = {
