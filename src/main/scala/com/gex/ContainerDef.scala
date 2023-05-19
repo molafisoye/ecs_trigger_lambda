@@ -2,7 +2,7 @@ package com.gex
 
 import com.amazonaws.services.ecs.model._
 
-import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
+import scala.jdk.CollectionConverters.{ MapHasAsJava, SeqHasAsJava }
 
 object ContainerDef {
 
@@ -10,7 +10,10 @@ object ContainerDef {
       name: String,
       accountId: String,
       envFileName: String,
-      workspace: String = "dev"
+      workspace: String = "dev",
+      cpu: String = "1024",
+      mem: String = "2048",
+      ephemMem: Int = 22
   ): RegisterTaskDefinitionRequest = {
 
     val pm = new PortMapping()
@@ -59,12 +62,14 @@ object ContainerDef {
     taskDefinition.setRequiresCompatibilities(
       List(Compatibility.FARGATE.toString).asJava
     )
-    taskDefinition.setCpu("1024")
-    taskDefinition.setMemory("2048")
+    taskDefinition.setCpu(cpu)
+    taskDefinition.setMemory(mem)
     taskDefinition.setNetworkMode(NetworkMode.Awsvpc)
     taskDefinition.setExecutionRoleArn(
       "arn:aws:iam::287730706223:role/ecsTaskExecutionRole"
     )
+    val storage = new EphemeralStorage()
+    taskDefinition.setEphemeralStorage(storage.withSizeInGiB(ephemMem))
     taskDefinition.setContainerDefinitions(List(containerDefinition).asJava)
     taskDefinition.setTags(List(nameTag, workspaceTag).asJava)
 

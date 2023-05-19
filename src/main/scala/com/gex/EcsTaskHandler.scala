@@ -60,7 +60,7 @@ object EcsTaskHandler {
         runTask(runTaskRequest)
         Response()
       case "star" =>
-        client.registerTaskDefinition(ContainerDef.create("gex-star", accountId, envFileName))
+        client.registerTaskDefinition(ContainerDef.create("gex-star", accountId, envFileName, cpu = "4096", mem = "30720", ephemMem = 100))
         runTaskRequest.setTaskDefinition(Config.starTaskDefFamily)
         runTask(runTaskRequest)
         Response()
