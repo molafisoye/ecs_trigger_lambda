@@ -60,7 +60,9 @@ object EcsTaskHandler {
         runTask(runTaskRequest)
         Response()
       case "star" =>
-        client.registerTaskDefinition(ContainerDef.create("gex-star", accountId, envFileName, cpu = "4096", mem = "30720", ephemMem = 100))
+        client.registerTaskDefinition(
+          ContainerDef.create("gex-star", accountId, envFileName, cpu = "4096", mem = "30720", ephemMem = 100)
+        )
         runTaskRequest.setTaskDefinition(Config.starTaskDefFamily)
         runTask(runTaskRequest)
         Response()
@@ -69,9 +71,14 @@ object EcsTaskHandler {
         runTaskRequest.setTaskDefinition(Config.fastqcTaskDefFamily)
         runTask(runTaskRequest)
         Response()
+      case "total_counts" =>
+        client.registerTaskDefinition(ContainerDef.create("gex-total-counts", accountId, envFileName))
+        runTaskRequest.setTaskDefinition(Config.totalCountsTaskDefFamily)
+        runTask(runTaskRequest)
+        Response()
       case _ =>
         Response(
-          s"unable to find task $taskName. Valid tasks are [umitools_extract, umitools_dedup, htseq_count, samtools_index, bbduk, star, fastqc]",
+          s"unable to find task $taskName. Valid tasks are [umitools_extract, umitools_dedup, htseq_count, samtools_index, bbduk, star, fastqc, total_counts]",
           404
         )
     }
@@ -106,24 +113,27 @@ object EcsTaskHandler {
     val suffix                                          = fileName.substring(fileName.indexOf(".") + 1)
     val (previousTaskName, nextTaskName, inputFileName) = getNextJobName(prefix, suffix)
     nextTaskName match {
-      case "invalid" => println(s"Nothing to do for $fileName")
+      case List("invalid") => println(s"Nothing to do for $fileName")
       case _ =>
         println(s"triggering $nextTaskName from s3 input $fileName")
-        val envFileNAme = s"env_file_$subfolder.env"
-        createEnvFileInS3(subfolder = subfolder, inputFileName = inputFileName, envFileName = envFileNAme)
-        triggerTask(nextTaskName, envFileNAme)
-        logNotificationResponse(
-          previousTaskName,
-          "COMPLETED",
-          HttpHandler.sendTaskNotification(Notification(previousTaskName, "COMPLETED"))
-        )
-        logNotificationResponse(
-          nextTaskName,
-          "STARTING",
-          HttpHandler.sendTaskNotification(Notification(nextTaskName, "STARTING"))
-        )
-
+        val envFileName = s"env_file_$subfolder.env"
+        createEnvFileInS3(subfolder = subfolder, inputFileName = inputFileName, envFileName = envFileName)
+        nextTaskName.foreach(triggerTaskAndNotify(_, previousTaskName, envFileName))
     }
+  }
+
+  private def triggerTaskAndNotify(nextTaskName: String, previousTaskName: String, envFileName: String): Unit = {
+    triggerTask(nextTaskName, envFileName)
+    logNotificationResponse(
+      previousTaskName,
+      "COMPLETED",
+      HttpHandler.sendTaskNotification(Notification(previousTaskName, "COMPLETED"))
+    )
+    logNotificationResponse(
+      nextTaskName,
+      "STARTING",
+      HttpHandler.sendTaskNotification(Notification(nextTaskName, "STARTING"))
+    )
   }
 
   private def logNotificationResponse(taskName: String, status: String, response: Response): Unit = {
@@ -135,20 +145,16 @@ object EcsTaskHandler {
     }
   }
 
-  def getNextJobName(prefix: String, suffix: String): (String, String, String) = {
+  def getNextJobName(prefix: String, suffix: String): (String, List[String], String) = {
     suffix match {
-      case "extracted.fastq.gz"            => ("umitools_extract", "bbduk", prefix + ".extracted.fastq.gz")
-      case "bbduk.fastq.gz"                => ("bbduk", "star", prefix + ".bbduk.fastq.gz")
-      case "Aligned.sortedByCoord.out.bam" => ("star", "htseq_count", prefix + ".Aligned.sortedByCoord.out.bam")
-      case "Aligned.sortedByCoord.out.table.txt" =>
-        ("htseq_count", "umitools_dedup", prefix + ".Aligned.sortedByCoord.out.bam")
-      case "Aligned.sortedByCoord.out.deduplicated.bam" =>
-        ("umitools_dedup", "htseq_count", prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
-      case "Aligned.sortedByCoord.out.deduplicated.table.txt" =>
-        ("htseq_count", "fastqc", prefix + ".Aligned.sortedByCoord.out.bam")
-      case "Aligned.sortedByCoord.out_fastqc.zip" =>
-        ("fastqc", "fastqc", prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
-      case _ => ("invalid", "invalid", "invalid")
+      case "extracted.fastq.gz"            => ("umitools_extract", List("bbduk"), prefix + ".extracted.fastq.gz")
+      case "bbduk.fastq.gz"                => ("bbduk", List("star"), prefix + ".bbduk.fastq.gz")
+      case "Aligned.sortedByCoord.out.bam" => ("star", List("htseq_count"), prefix + ".Aligned.sortedByCoord.out.bam")
+      case "Aligned.sortedByCoord.out.table.txt" => ("htseq_count", List("umitools_dedup"), prefix + ".Aligned.sortedByCoord.out.bam")
+      case "Aligned.sortedByCoord.out.deduplicated.bam" => ("umitools_dedup", List("htseq_count"), prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
+      case "Aligned.sortedByCoord.out.deduplicated.table.txt" => ("htseq_count", List("fastqc", "total_counts"), prefix + ".Aligned.sortedByCoord.out.bam")
+      case "Aligned.sortedByCoord.out_fastqc.zip" => ("fastqc", List("fastqc"), prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
+      case _ => ("invalid", List("invalid"), "invalid")
     }
   }
 

@@ -11,4 +11,5 @@ object Config {
     val bbdukTaskDefFamily: String = System.getenv("BBDUK_EXTRACT_TASK_DEF_NAME")
     val starTaskDefFamily: String = System.getenv("STAR_EXTRACT_TASK_DEF_NAME")
     val fastqcTaskDefFamily: String = System.getenv("FASTQC_EXTRACT_TASK_DEF_NAME")
+    val totalCountsTaskDefFamily: String = System.getenv("TOTAL_COUNTS_TASK_DEF_NAME")
 }
