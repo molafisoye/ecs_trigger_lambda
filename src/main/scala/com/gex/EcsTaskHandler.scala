@@ -117,8 +117,14 @@ object EcsTaskHandler {
       case _ =>
         println(s"triggering $nextTaskName from s3 input $fileName")
         val envFileName = s"env_file_$subfolder.env"
-        createEnvFileInS3(subfolder = subfolder, inputFileName = inputFileName, envFileName = envFileName)
-        nextTaskName.foreach(triggerTaskAndNotify(_, previousTaskName, envFileName))
+        nextTaskName.foreach { taskName =>
+          if (taskName == "total_counts") {
+            createEnvFileInS3(subfolder = subfolder, inputFileName = s"$prefix.Aligned.sortedByCoord.out.deduplicated.table.txt", envFileName = envFileName)
+          } else {
+            createEnvFileInS3(subfolder = subfolder, inputFileName = inputFileName, envFileName = envFileName)
+          }
+          triggerTaskAndNotify(taskName, previousTaskName, envFileName)
+        }
     }
   }
 
@@ -150,10 +156,14 @@ object EcsTaskHandler {
       case "extracted.fastq.gz"            => ("umitools_extract", List("bbduk"), prefix + ".extracted.fastq.gz")
       case "bbduk.fastq.gz"                => ("bbduk", List("star"), prefix + ".bbduk.fastq.gz")
       case "Aligned.sortedByCoord.out.bam" => ("star", List("htseq_count"), prefix + ".Aligned.sortedByCoord.out.bam")
-      case "Aligned.sortedByCoord.out.table.txt" => ("htseq_count", List("umitools_dedup"), prefix + ".Aligned.sortedByCoord.out.bam")
-      case "Aligned.sortedByCoord.out.deduplicated.bam" => ("umitools_dedup", List("htseq_count"), prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
-      case "Aligned.sortedByCoord.out.deduplicated.table.txt" => ("htseq_count", List("fastqc", "total_counts"), prefix + ".Aligned.sortedByCoord.out.bam")
-      case "Aligned.sortedByCoord.out_fastqc.zip" => ("fastqc", List("fastqc"), prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
+      case "Aligned.sortedByCoord.out.table.txt" =>
+        ("htseq_count", List("umitools_dedup"), prefix + ".Aligned.sortedByCoord.out.bam")
+      case "Aligned.sortedByCoord.out.deduplicated.bam" =>
+        ("umitools_dedup", List("htseq_count"), prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
+      case "Aligned.sortedByCoord.out.deduplicated.table.txt" =>
+        ("htseq_count", List("fastqc", "total_counts"), prefix + ".Aligned.sortedByCoord.out.bam")
+      case "Aligned.sortedByCoord.out_fastqc.zip" =>
+        ("fastqc", List("fastqc"), prefix + ".Aligned.sortedByCoord.out.deduplicated.bam")
       case _ => ("invalid", List("invalid"), "invalid")
     }
   }
