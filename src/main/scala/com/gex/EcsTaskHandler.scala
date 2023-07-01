@@ -72,7 +72,7 @@ object EcsTaskHandler {
         runTask(runTaskRequest)
         Response()
       case "total_counts" =>
-        client.registerTaskDefinition(ContainerDef.create("gex-total-counts", accountId, envFileName))
+        client.registerTaskDefinition(ContainerDef.create("gex-total-counts", accountId, envFileName, cpu = "4096", mem = "30720"))
         runTaskRequest.setTaskDefinition(Config.totalCountsTaskDefFamily)
         runTask(runTaskRequest)
         Response()
@@ -116,14 +116,16 @@ object EcsTaskHandler {
       case List("invalid") => println(s"Nothing to do for $fileName")
       case _ =>
         println(s"triggering $nextTaskName from s3 input $fileName")
-        val envFileName = s"env_file_$subfolder.env"
         nextTaskName.foreach { taskName =>
           if (taskName == "total_counts") {
-            createEnvFileInS3(subfolder = subfolder, inputFileName = s"$prefix.Aligned.sortedByCoord.out.deduplicated.table.txt", envFileName = envFileName)
+            val envFileNameTotalCounts = s"env_file_${subfolder}_total_counts.env"
+            createEnvFileInS3(subfolder = subfolder, inputFileName = s"$prefix.Aligned.sortedByCoord.out.deduplicated.table.txt", envFileName = envFileNameTotalCounts)
+            triggerTaskAndNotify(taskName, previousTaskName, envFileNameTotalCounts)
           } else {
+            val envFileName = s"env_file_$subfolder.env"
             createEnvFileInS3(subfolder = subfolder, inputFileName = inputFileName, envFileName = envFileName)
+            triggerTaskAndNotify(taskName, previousTaskName, envFileName)
           }
-          triggerTaskAndNotify(taskName, previousTaskName, envFileName)
         }
     }
   }
